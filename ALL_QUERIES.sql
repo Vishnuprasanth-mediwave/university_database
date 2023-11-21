@@ -268,11 +268,92 @@ LEFT JOIN marks m ON s.student_id = m.student_id
 WHERE m.marks = -1 OR m.marks IS NULL
 group by s.student_name,s.student_id ;
 
-Task 3
--------
+ask 3
+
 -- - update the mark to 40 those who were scored the marks between 35 to 39
+    update marks set marks =40 where marks between 35 and 39 ;
+
 -- - get the history of marks that are changed
+   CREATE TABLE marks_history (
+    history_id SERIAL PRIMARY KEY,
+    student_id INT,
+    old_marks INT,
+    new_marks INT,
+    subject_id INT,
+    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    changed_by VARCHAR(50),
+    status varchar
+);
+/*
+drop table marks_history 
+
+DROP TRIGGER IF EXISTS audit_marks ON marks;
+DROP TRIGGER IF EXISTS marks_audit_trigger ON marks;
+*/
+CREATE OR REPLACE FUNCTION audit_marks()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        INSERT INTO marks_history (student_id, old_marks, new_marks, subject_id, changed_by, status)
+        VALUES (NEW.student_id, NULL, NEW.marks, NEW.subject_id, current_user, 'INSERT');
+
+    ELSIF (TG_OP = 'UPDATE') THEN
+        INSERT INTO marks_history (student_id, old_marks, new_marks, subject_id, changed_by, status)
+        VALUES (OLD.student_id, OLD.marks, NEW.marks, OLD.subject_id, current_user, 'UPDATE');
+
+    ELSIF (TG_OP = 'DELETE') THEN
+        INSERT INTO marks_history (student_id, old_marks, new_marks, subject_id, changed_by, status)
+        VALUES (OLD.student_id, OLD.marks, NULL, OLD.subject_id, current_user, 'DELETE');
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE TRIGGER marks_audit_trigger
+AFTER INSERT OR UPDATE OR DELETE ON marks
+FOR EACH ROW EXECUTE FUNCTION audit_marks();
+
+
+DELETE FROM marks WHERE marks.mark_id = 37;
+update marks set marks =100 where mark_id = 37;
+SELECT * FROM marks_history;
+
 -- - choose any select query from tast 2 and insert the values into a temp table(https://www.postgresqltutorial.com/postgresql-tutorial/postgresql-select-into/)
+        SELECT c.college_name, COUNT(s.college_id) AS student_count
+INTO TEMPORARY TABLE temp_student_count
+FROM college c
+LEFT JOIN student s ON c.college_id = s.college_id
+GROUP BY c.college_name;
+
+select * from temp_student_count
 -- - delete a college and its respective things
+    DELETE FROM colleges
+WHERE college_id = 1;
+
+
 -- - alter all the tables add audit columns (createdAt,createBy,updatedAt,updatedBy)
+    ALTER TABLE marks 
+ADD COLUMN createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN createBy VARCHAR default current_user,
+ADD COLUMN updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ,
+ADD COLUMN updatedBy VARCHAR default current_user;
 -- - remove the duplicate values in the mark table(insert values for your convenient)
+    delete from marks where mark_id in (select mark_id from (select mark_id, 
+row_number() over(partition by student_id,subject_id order by mark_id) as duplicate from marks ) dup_mark
+where duplicate >1);
+
+--- alter for cascading delete
+
+ALTER TABLE college_course DROP CONSTRAINT college_course_college_id_fkey;
+
+ALTER TABLE college_course ADD CONSTRAINT college_course_college_id_fkey FOREIGN KEY (college_id) REFERENCES college(college_id) ON DELETE CASCADE;
+
+ALTER TABLE student DROP CONSTRAINT student_college_id_fkey;
+
+ALTER TABLE student ADD CONSTRAINT student_college_id_fkey FOREIGN KEY (college_id) REFERENCES college(college_id) ON DELETE CASCADE;
+
+ALTER TABLE marks DROP CONSTRAINT marks_student_id_fkey;      
+
+ALTER TABLE marks ADD CONSTRAINT marks_student_id_fkey FOREIGN KEY (student_id) REFERENCES student(student_id) ON DELETE CASCADE;
