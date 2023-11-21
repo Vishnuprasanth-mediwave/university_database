@@ -270,10 +270,10 @@ group by s.student_name,s.student_id ;
 
 ask 3
 
--- - update the mark to 40 those who were scored the marks between 35 to 39
+-- - 1.update the mark to 40 those who were scored the marks between 35 to 39
     update marks set marks =40 where marks between 35 and 39 ;
 
--- - get the history of marks that are changed
+-- - 2.get the history of marks that are changed
    CREATE TABLE marks_history (
     history_id SERIAL PRIMARY KEY,
     student_id INT,
@@ -320,7 +320,7 @@ DELETE FROM marks WHERE marks.mark_id = 37;
 update marks set marks =100 where mark_id = 37;
 SELECT * FROM marks_history;
 
--- - choose any select query from tast 2 and insert the values into a temp table(https://www.postgresqltutorial.com/postgresql-tutorial/postgresql-select-into/)
+-- 3.choose any select query from tast 2 and insert the values into a temp table(https://www.postgresqltutorial.com/postgresql-tutorial/postgresql-select-into/)
         SELECT c.college_name, COUNT(s.college_id) AS student_count
 INTO TEMPORARY TABLE temp_student_count
 FROM college c
@@ -328,12 +328,12 @@ LEFT JOIN student s ON c.college_id = s.college_id
 GROUP BY c.college_name;
 
 select * from temp_student_count
--- - delete a college and its respective things
+-- 4. delete a college and its respective things
     DELETE FROM colleges
 WHERE college_id = 1;
 
 
--- - alter all the tables add audit columns (createdAt,createBy,updatedAt,updatedBy)
+-- 5. alter all the tables add audit columns (createdAt,createBy,updatedAt,updatedBy)
     ALTER TABLE marks 
 ADD COLUMN createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 ADD COLUMN createBy VARCHAR default current_user,
@@ -344,7 +344,7 @@ ADD COLUMN updatedBy VARCHAR default current_user;
 row_number() over(partition by student_id,subject_id order by mark_id) as duplicate from marks ) dup_mark
 where duplicate >1);
 
---- alter for cascading delete
+--6. alter for cascading delete
 
 ALTER TABLE college_course DROP CONSTRAINT college_course_college_id_fkey;
 
