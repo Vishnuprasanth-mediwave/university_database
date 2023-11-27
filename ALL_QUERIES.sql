@@ -290,7 +290,35 @@ drop table marks_history
 DROP TRIGGER IF EXISTS audit_marks ON marks;
 DROP TRIGGER IF EXISTS marks_audit_trigger ON marks;
 */
+CREATE OR REPLACE FUNCTION audit_marks()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        INSERT INTO marks_history (student_id, old_marks, new_marks, subject_id, changed_by, status)
+        VALUES (NEW.student_id, NULL, NEW.marks, NEW.subject_id, current_user, 'INSERT');
 
+    ELSIF (TG_OP = 'UPDATE') THEN
+        INSERT INTO marks_history (student_id, old_marks, new_marks, subject_id, changed_by, status)
+        VALUES (OLD.student_id, OLD.marks, NEW.marks, OLD.subject_id, current_user, 'UPDATE');
+
+    ELSIF (TG_OP = 'DELETE') THEN
+        INSERT INTO marks_history (student_id, old_marks, new_marks, subject_id, changed_by, status)
+        VALUES (OLD.student_id, OLD.marks, NULL, OLD.subject_id, current_user, 'DELETE');
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE TRIGGER marks_audit_trigger
+AFTER INSERT OR UPDATE OR DELETE ON marks
+FOR EACH ROW EXECUTE FUNCTION audit_marks();
+
+
+DELETE FROM marks WHERE marks.mark_id = 37;
+update marks set marks =100 where mark_id = 37;
+SELECT * FROM marks_history;
 
 -- 3.choose any select query from tast 2 and insert the values into a temp table(https://www.postgresqltutorial.com/postgresql-tutorial/postgresql-select-into/)
         SELECT c.college_name, COUNT(s.college_id) AS student_count
